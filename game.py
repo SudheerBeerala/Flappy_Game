@@ -18,7 +18,8 @@ def create_pipe_rect():
 def move_pipes(pipe_rect_list):
     for pipe_rect in pipe_rect_list:
         pipe_rect.centerx -= 2
-    return pipe_rect_list
+    visible_pipes = [pipe_rect for pipe_rect in pipe_rect_list if pipe_rect.right > -10]
+    return visible_pipes
 
 
 def draw_pipes(pipe_rect_list):
@@ -30,12 +31,15 @@ def draw_pipes(pipe_rect_list):
 
 
 def check_collision(pipe_rect_list):
+    global score_deactive_period
     for pipe_rect in pipe_rect_list:
         if bird_rect.colliderect(pipe_rect):
             death_sound.play()
+            score_deactive_period = False
             return False
 
     if bird_rect.top <= -100 or bird_rect.bottom >= 540:
+        score_deactive_period = False
         return False
     return True
 
@@ -67,7 +71,19 @@ def score_display(game_status):
         screen.blit(high_score_surface, high_score_rect)
 
 
-# pg.mixer.pre_init(frequency=44100, size=16, channels=1, buffer=512)
+def score_check():
+    global score, score_deactive_period
+    if pipe_rect_list:
+        for pipe_rect in pipe_rect_list:
+            if 97 < pipe_rect.centerx < 103 and not score_deactive_period:
+                score += 1
+                score_sound.play()
+                score_deactive_period = True
+
+            if pipe_rect.centerx < 0:
+                score_deactive_period = False
+
+
 pg.init()
 
 # Game variables
@@ -78,7 +94,7 @@ game_font = pg.font.Font('04B_19.ttf', 30)
 score = 0
 high_score = 0
 score_count = 100
-
+score_deactive_period = False
 running = True
 screen = pg.display.set_mode((360, 640))
 clock = pg.time.Clock()
@@ -135,10 +151,11 @@ while running:
                 pipe_rect_list.clear()
                 score = 0
 
-        if event.type == SPAWNPIPE:
+        if event.type == SPAWNPIPE and game_active:
             pipe_rect_list.extend(create_pipe_rect())
+            print(pipe_rect_list)
 
-        if event.type == BIRDFLAP:
+        if event.type == BIRDFLAP and game_active:
             if bird_image_index >= 2:
                 bird_image_index = 0
             else:
@@ -163,15 +180,12 @@ while running:
     # Pipes
         pipe_rect_list = move_pipes(pipe_rect_list)
         draw_pipes(pipe_rect_list)
-        score += .01
-        score_count -= 1
 
-        if score_count <= 0:
-            score_sound.play()
-            score_count = 100
-
+    # Score
+        score_check()
         score_display('main_game')
     else:
+        # High Score
         if score > high_score:
             high_score = score
         screen.blit(game_over_image, game_over_rect)
